@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "ava-consciousness-env"
+version = "1.0.0"
+description = "A benchmark environment for training and evaluating agents on Theory of Mind tasks and structured Turing evaluation."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openenv-core",
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2.0",
+    "openai",
+    "python-dotenv",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[project.optional-dependencies]
+dev = ["httpx", "pytest"]
+
+[tool.openenv]
+name = "ava-consciousness-env"
+version = "1.0.0"
+entry_point = "src.ava.server:app"
