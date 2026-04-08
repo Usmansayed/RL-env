@@ -1,3 +1,13 @@
+---
+title: Ava Consciousness Env
+emoji: 🔥
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: false
+license: mit
+---
+
 # AVA — AI Consciousness Evaluation Environment
 
 [![openenv](https://img.shields.io/badge/openenv-compatible-blue)](https://openenv.ai)
