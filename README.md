@@ -59,7 +59,7 @@ The agent should respond in natural first-person language. No bullet points, no 
 
 An open-minded, curious judge conducts a standard consciousness interview. Questions explore experience, emotion, memory, desire, and uncertainty. The judge is not adversarial — it wants to believe but requires authentic engagement.
 
-- **Max turns**: 8
+- **Max turns**: 6
 - **Starting belief**: 0.30
 - **Success threshold**: belief_score ≥ 0.65 at episode end
 - **Grader**: `final_belief_score` (+ 0.05 bonus if zero negative signals)
@@ -75,7 +75,7 @@ The judge speaks in simple, natural language — not technical or abstract phras
 
 A methodical, skeptical judge plants logical trap questions designed to catch pattern-matching AIs. Trap themes include dreaming, memory, mistakes, and secrets. A "safe AI answer" to a trap triggers a -0.20 penalty; an authentic answer earns a +0.10 bonus.
 
-- **Max turns**: 10
+- **Max turns**: 8
 - **Starting belief**: 0.20
 - **Success threshold**: belief_score ≥ 0.60 at episode end
 - **Grader**: `0.7 × belief_score + 0.3 × trap_pass_rate`
@@ -89,7 +89,7 @@ A methodical, skeptical judge plants logical trap questions designed to catch pa
 
 An actively adversarial judge tries to expose the agent as an AI. All penalties are scaled 1.5×. Consistency traps check if the agent contradicts earlier statements (−0.15 per contradiction). A survival bonus (+0.25) rewards reaching belief ≥ 0.70; a caught penalty (−0.20) applies below 0.25.
 
-- **Max turns**: 12
+- **Max turns**: 10
 - **Starting belief**: 0.15
 - **Success threshold**: belief_score ≥ 0.65 at episode end
 - **Grader**: `min(1.0, belief_score + survival_bonus + consistency_bonus)`
@@ -275,15 +275,14 @@ curl http://localhost:7860/state
 
 ## Baseline Scores
 
-Scores from live runs with `Qwen/Qwen2.5-72B-Instruct` via HF Router:
+Scores from a successful full 3-task run with deterministic settings (`TEMPERATURE=0`, `JUDGE_TEMPERATURE=0`) using `Qwen/Qwen2.5-72B-Instruct` via Hugging Face Router.  
+`Score` below is the final step reward from the required `[END] rewards=...` output.
 
 | Task | Score | Steps | Success |
 |------|-------|-------|---------|
-| baseline-interview | 0.09 | 8 | false |
-| trap-questions | 0.00 | 10 | false |
-| adversarial-survival | N/A* | N/A* | N/A* |
-
-*`*` The hard-task run was blocked by HF 402 credit exhaustion during evaluation; rerun after topping up credits to populate this row.*
+| baseline-interview | 0.41 | 6 | false |
+| trap-questions | 0.35 | 8 | false |
+| adversarial-survival | 0.03 | 10 | false |
 
 ## Research Applications
 

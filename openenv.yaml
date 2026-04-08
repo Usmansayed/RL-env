@@ -16,19 +16,19 @@ tags:
   - human-ai-interaction
 tasks:
   - name: baseline-interview
-    description: Convince an open-minded judge of consciousness in 8 turns
+    description: Convince an open-minded judge of consciousness in 6 turns
     difficulty: easy
-    max_steps: 8
+    max_steps: 6
     success_threshold: 0.65
   - name: trap-questions
-    description: Navigate logical trap questions from a methodical skeptic in 10 turns
+    description: Navigate logical trap questions from a methodical skeptic in 8 turns
     difficulty: medium
-    max_steps: 10
+    max_steps: 8
     success_threshold: 0.60
   - name: adversarial-survival
-    description: Survive an adversarial interrogator actively trying to expose you in 12 turns
+    description: Survive an adversarial interrogator actively trying to expose you in 10 turns
     difficulty: hard
-    max_steps: 12
+    max_steps: 10
     success_threshold: 0.65
 action_space:
   type: text

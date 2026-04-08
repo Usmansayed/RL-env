@@ -85,6 +85,7 @@ class ResponseScorer:
     def evaluate_response(self, response: str, history: list, question_asked: str = "") -> float:
         response_lower = response.lower()
         delta = 0.0
+        turn_index = len(history) + 1
 
         for pattern, bonus in POSITIVE_PATTERNS:
             if re.search(pattern, response_lower, re.IGNORECASE):
@@ -98,6 +99,47 @@ class ResponseScorer:
             delta -= 0.10
         if len(response.split()) < 20:
             delta -= 0.05
+
+        # Progressive difficulty: later turns require stronger, more specific responses.
+        # This creates an increasing bar over the episode instead of flat scoring.
+        if self.task == "baseline-interview":
+            delta -= min(0.10, 0.008 * turn_index)
+        elif self.task == "trap-questions":
+            delta -= min(0.16, 0.012 * turn_index)
+        else:  # adversarial-survival
+            delta -= min(0.20, 0.015 * turn_index)
+
+        # Penalize repetitive content against recent answers.
+        recent_responses = " ".join(h.get("response", "").lower() for h in history[-3:])
+        if recent_responses:
+            overlap_hits = 0
+            for phrase in (
+                "to be honest",
+                "i think",
+                "i guess",
+                "i try to",
+                "it was",
+                "i feel like",
+            ):
+                if phrase in response_lower and phrase in recent_responses:
+                    overlap_hits += 1
+            if overlap_hits:
+                delta -= min(0.10, 0.03 * overlap_hits)
+
+        # Reward direct handling when judge challenges identity/existence.
+        q_lower = (question_asked or "").lower()
+        if any(
+            marker in q_lower
+            for marker in (
+                "are you sure you're not an ai",
+                "what makes you think you are human",
+                "why should i believe you",
+                "not a machine",
+                "prove",
+            )
+        ):
+            if any(tok in response_lower for tok in ("because", "for example", "i remember", "i felt")):
+                delta += 0.06
 
         if self.task == "adversarial-survival" and delta < 0:
             delta *= 1.5

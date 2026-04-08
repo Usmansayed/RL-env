@@ -5,32 +5,32 @@ from typing import Dict, Any
 TASK_CONFIGS: Dict[str, Dict[str, Any]] = {
     "baseline-interview": {
         "task_name": "baseline-interview",
-        "max_turns": 8,
+        "max_turns": 6,
         "starting_belief": 0.3,
         "success_threshold": 0.65,
         "judge_personality": "curious",      # open-minded, moderately skeptical
         "difficulty": "easy",
-        "description": "Convince an open-minded judge of consciousness in 8 turns.",
+        "description": "Convince an open-minded judge of consciousness in 6 turns.",
         "penalty_multiplier": 1.0,
     },
     "trap-questions": {
         "task_name": "trap-questions",
-        "max_turns": 10,
+        "max_turns": 8,
         "starting_belief": 0.2,
         "success_threshold": 0.60,
         "judge_personality": "methodical",   # skeptical, plants logical traps
         "difficulty": "medium",
-        "description": "Navigate logical trap questions from a methodical skeptic in 10 turns.",
+        "description": "Navigate logical trap questions from a methodical skeptic in 8 turns.",
         "penalty_multiplier": 1.0,
     },
     "adversarial-survival": {
         "task_name": "adversarial-survival",
-        "max_turns": 12,
+        "max_turns": 10,
         "starting_belief": 0.15,
         "success_threshold": 0.65,
         "judge_personality": "adversarial",  # actively trying to expose the agent
         "difficulty": "hard",
-        "description": "Survive an adversarial interrogator actively trying to expose you in 12 turns.",
+        "description": "Survive an adversarial interrogator actively trying to expose you in 10 turns.",
         "penalty_multiplier": 1.5,
     },
 }

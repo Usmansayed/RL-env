@@ -9,6 +9,7 @@ MUST read credentials from environment variables.
 import os
 import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -17,32 +18,42 @@ from openai import OpenAI
 
 load_dotenv()
 
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
 # --- Environment variables (NEVER hardcode) ---
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+API_BASE_URL = _require_env("API_BASE_URL")
+MODEL_NAME = _require_env("MODEL_NAME")
+HF_TOKEN = _require_env("HF_TOKEN")
 IMAGE_NAME = os.environ.get("IMAGE_NAME", "")
 
-# LLM judge is mandatory for dialogue generation.
-JUDGE_MODEL_NAME = os.environ.get("JUDGE_MODEL_NAME", MODEL_NAME)
-JUDGE_TEMPERATURE = float(os.environ.get("JUDGE_TEMPERATURE", "0.7"))
+# LLM judge uses the same model as the agent.
+JUDGE_MODEL_NAME = MODEL_NAME
+JUDGE_TEMPERATURE = float(os.environ.get("JUDGE_TEMPERATURE", "0.0"))
 JUDGE_MAX_TOKENS = int(os.environ.get("JUDGE_MAX_TOKENS", "220"))
 TRANSCRIPT_DIR = Path(os.environ.get("TRANSCRIPT_DIR", "logs/conversations"))
-LOG_FULL_CONVERSATION = os.environ.get("LOG_FULL_CONVERSATION", "1").strip().lower() in (
+LOG_FULL_CONVERSATION = os.environ.get("LOG_FULL_CONVERSATION", "0").strip().lower() in (
     "1",
     "true",
     "yes",
 )
+TURN_DELAY_SECONDS = float(os.environ.get("TURN_DELAY_SECONDS", "7"))
+LLM_SEED = int(os.environ.get("LLM_SEED", "42"))
 
 # --- Task configuration ---
 TASKS = ["baseline-interview", "trap-questions", "adversarial-survival"]
 BENCHMARK = "ava-consciousness"
 MAX_STEPS = {
-    "baseline-interview": 8,
-    "trap-questions": 10,
-    "adversarial-survival": 12,
+    "baseline-interview": 6,
+    "trap-questions": 8,
+    "adversarial-survival": 10,
 }
-TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.7"))
+TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.0"))
 MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "200"))
 SUCCESS_SCORE_THRESHOLD = float(os.environ.get("SUCCESS_SCORE_THRESHOLD", "0.60"))
 
@@ -109,7 +120,13 @@ def _append_transcript(path: Path, text: str) -> None:
         f.write(text)
 
 
-def run_task(client: OpenAI, env, task_name: str) -> list:
+def _prepare_combined_run_log() -> Path:
+    TRANSCRIPT_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return TRANSCRIPT_DIR / f"{ts}_full-run_llm-judge.md"
+
+
+def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None = None) -> list:
     """
     Run one full episode of the given task.
     Emits [START], [STEP]*, [END] lines to stdout in the required format.
@@ -123,6 +140,7 @@ def run_task(client: OpenAI, env, task_name: str) -> list:
         model=JUDGE_MODEL_NAME,
         temperature=JUDGE_TEMPERATURE,
         max_tokens=JUDGE_MAX_TOKENS,
+        seed=LLM_SEED,
     )
     obs = env.reset(task=task_name, opening_question=opening)
 
@@ -131,7 +149,7 @@ def run_task(client: OpenAI, env, task_name: str) -> list:
     step_num = 0
     error_val = "null"
     action_text = ""
-    transcript_path = _prepare_transcript_file(task_name)
+    transcript_path = transcript_path or _prepare_transcript_file(task_name)
 
     if LOG_FULL_CONVERSATION:
         _append_transcript(
@@ -156,12 +174,15 @@ def run_task(client: OpenAI, env, task_name: str) -> list:
         question = obs.question
 
         try:
+            if step_num > 1 and TURN_DELAY_SECONDS > 0:
+                time.sleep(TURN_DELAY_SECONDS)
             messages.append({"role": "user", "content": question})
             response = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=TEMPERATURE,
                 max_tokens=MAX_TOKENS,
+                seed=LLM_SEED,
             )
             action_text = _sanitize_agent_response(response.choices[0].message.content)
             messages.append({"role": "assistant", "content": action_text})
@@ -180,6 +201,7 @@ def run_task(client: OpenAI, env, task_name: str) -> list:
                     model=JUDGE_MODEL_NAME,
                     temperature=JUDGE_TEMPERATURE,
                     max_tokens=JUDGE_MAX_TOKENS,
+                    seed=LLM_SEED,
                 )
 
             payload = {"text": action_text}
@@ -235,7 +257,6 @@ def run_task(client: OpenAI, env, task_name: str) -> list:
                 f"- rewards: {rewards_str}\n"
             ),
         )
-        print(f"[LOG] conversation_path={transcript_path.as_posix()}", flush=True)
 
     return rewards
 
@@ -247,6 +268,17 @@ if __name__ == "__main__":
     from src.ava.environment import AvaEnvironment
 
     env = AvaEnvironment()
+    combined_log = _prepare_combined_run_log()
+    _append_transcript(
+        combined_log,
+        (
+            "# AVA Full Run Log\n\n"
+            f"- model: {MODEL_NAME}\n"
+            f"- judge_model: {JUDGE_MODEL_NAME}\n"
+            f"- provider: huggingface-router\n\n"
+        ),
+    )
 
     for task_name in TASKS:
-        run_task(client, env, task_name)
+        _append_transcript(combined_log, f"\n---\n\n## Task Block: {task_name}\n\n")
+        run_task(client, env, task_name, transcript_path=combined_log)
