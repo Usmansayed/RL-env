@@ -7,5 +7,6 @@ __pycache__/
 *.py[cod]
 _refs/
 logs/
+tests/
 *.md
 !README.md

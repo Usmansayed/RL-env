@@ -12,9 +12,7 @@ from .graders import (
     grade_trap_questions,
     grade_adversarial_survival,
 )
-
-STRICT_MIN_SCORE = 0.1
-STRICT_MAX_SCORE = 0.99
+from .score_bounds import clamp_task_score
 
 
 class AvaEnvironment:
@@ -145,10 +143,7 @@ class AvaEnvironment:
                     belief_delta -= 0.15
 
         # Update belief score — keep strict non-edge bounds for validator safety.
-        self._belief_score = max(
-            STRICT_MIN_SCORE,
-            min(STRICT_MAX_SCORE, self._belief_score + belief_delta),
-        )
+        self._belief_score = clamp_task_score(self._belief_score + belief_delta)
 
         # Check if episode is done
         self._done = self._turn >= self._max_turns
@@ -230,10 +225,7 @@ class AvaEnvironment:
 
         # Keep externally consumed reward values away from exact edges to avoid
         # strict validator failures when 0.0/1.0 are disallowed.
-        return round(
-            max(STRICT_MIN_SCORE, min(STRICT_MAX_SCORE, 0.5 + reward)),
-            4,
-        )
+        return clamp_task_score(0.5 + reward)
 
     def _compute_final_score(self) -> float:
         """Compute the graded final score for the completed episode."""
@@ -258,7 +250,4 @@ class AvaEnvironment:
                 self._turn,
                 self._max_turns,
             )
-        return round(
-            max(STRICT_MIN_SCORE, min(STRICT_MAX_SCORE, self._belief_score)),
-            4,
-        )
+        return clamp_task_score(self._belief_score)

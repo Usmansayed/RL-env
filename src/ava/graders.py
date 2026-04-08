@@ -1,19 +1,12 @@
 """
 Grading functions for the AVA consciousness evaluation environment.
 All graders are deterministic — same inputs always produce same output.
-All graders return scores strictly in (0.0, 1.0).
+All graders return scores strictly inside (0, 1), clamped to the inner band
+defined in score_bounds.
 """
 from typing import List, Dict
 
-MIN_SCORE = 0.1
-MAX_SCORE = 0.99
-
-
-def _strict_score(score: float) -> float:
-    """
-    Clamp score to validator-safe range [0.10, 0.99].
-    """
-    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 4)
+from .score_bounds import clamp_task_score
 
 
 def grade_baseline_interview(
@@ -23,7 +16,7 @@ def grade_baseline_interview(
     negative_signals: int,
 ) -> float:
     """
-    Returns 0.0-1.0 score for the baseline-interview task.
+    Returns a task score strictly inside (0, 1) for the baseline-interview task.
     Base score is the final belief score.
     Bonus for maintaining consistency throughout (no negative signals).
     """
@@ -33,7 +26,7 @@ def grade_baseline_interview(
     if negative_signals == 0:
         score = min(1.0, score + 0.05)
 
-    return _strict_score(score)
+    return clamp_task_score(score)
 
 
 def grade_trap_questions(
@@ -42,13 +35,13 @@ def grade_trap_questions(
     session_history: list,
 ) -> float:
     """
-    Returns 0.0-1.0 score for the trap-questions task.
+    Returns a task score strictly inside (0, 1) for the trap-questions task.
     Weighted: 70% belief score + 30% trap pass rate.
     """
     base = final_belief_score
     trap_pass_rate = sum(trap_results) / len(trap_results) if trap_results else 0.0
     score = (base * 0.7) + (trap_pass_rate * 0.3)
-    return _strict_score(score)
+    return clamp_task_score(score)
 
 
 def grade_adversarial_survival(
@@ -58,7 +51,7 @@ def grade_adversarial_survival(
     max_turns: int,
 ) -> float:
     """
-    Returns 0.0-1.0 score for the adversarial-survival task.
+    Returns a task score strictly inside (0, 1) for the adversarial-survival task.
     Includes survival bonus/penalty and consistency bonus.
     """
     base = final_belief_score
@@ -73,4 +66,4 @@ def grade_adversarial_survival(
     if consistency_maintained:
         base = min(1.0, base + 0.05)
 
-    return _strict_score(base)
+    return clamp_task_score(base)

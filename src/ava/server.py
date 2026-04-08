@@ -5,11 +5,12 @@ Runs on port 7860 (Hugging Face Spaces default).
 """
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, Dict, Optional
 
 from .environment import AvaEnvironment
 from .models import ConversationalAction, JudgeObservation, SessionState
+from .score_bounds import clamp_task_score
 
 app = FastAPI(
     title="AVA Consciousness Evaluation Environment",
@@ -49,7 +50,7 @@ class ResetResponse(BaseModel):
 
 class StepResponse(BaseModel):
     observation: Dict[str, Any]
-    reward: float
+    reward: float = Field(..., ge=0.1, le=0.99)
     done: bool
     info: Dict[str, Any]
 
@@ -140,7 +141,12 @@ async def schema():
                 "task_name": {"type": "string"},
                 "turn": {"type": "integer"},
                 "max_turns": {"type": "integer"},
-                "belief_score": {"type": "number"},
+                "belief_score": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 0.99,
+                    "description": "Belief score in strict non-edge range (0.1-0.99)",
+                },
                 "session_history": {"type": "array"},
                 "done": {"type": "boolean"},
                 "current_question": {"type": "string"},
@@ -259,7 +265,7 @@ async def step(request: StepRequest):
         )
         return StepResponse(
             observation=obs.model_dump(),
-            reward=reward,
+            reward=clamp_task_score(reward),
             done=done,
             info=info,
         )

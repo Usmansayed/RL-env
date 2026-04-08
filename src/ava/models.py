@@ -40,7 +40,12 @@ class SessionState(BaseModel):
     task_name: str
     turn: int
     max_turns: int
-    belief_score: float
+    belief_score: float = Field(
+        ...,
+        ge=0.1,
+        le=0.99,
+        description="Belief score in strict non-edge range (0.1-0.99)",
+    )
     session_history: List[Dict[str, str]]
     done: bool
     current_question: str
