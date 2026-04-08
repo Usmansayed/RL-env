@@ -27,8 +27,8 @@ def _require_env(name: str) -> str:
 
 
 # --- Environment variables (NEVER hardcode) ---
-API_BASE_URL = _require_env("API_BASE_URL")
-MODEL_NAME = _require_env("MODEL_NAME")
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1").strip()
+MODEL_NAME = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct").strip()
 HF_TOKEN = _require_env("HF_TOKEN")
 IMAGE_NAME = os.environ.get("IMAGE_NAME", "")
 
@@ -126,6 +126,10 @@ def _prepare_combined_run_log() -> Path:
     return TRANSCRIPT_DIR / f"{ts}_full-run_llm-judge.md"
 
 
+def _format_error(e: Exception) -> str:
+    return str(e).replace("\n", " ")[:100]
+
+
 def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None = None) -> list:
     """
     Run one full episode of the given task.
@@ -134,18 +138,8 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
     """
     from src.ava.judge import next_question, opening_question
 
-    opening = opening_question(
-        client,
-        task_name,
-        model=JUDGE_MODEL_NAME,
-        temperature=JUDGE_TEMPERATURE,
-        max_tokens=JUDGE_MAX_TOKENS,
-        seed=LLM_SEED,
-    )
-    obs = env.reset(task=task_name, opening_question=opening)
-
     rewards = []
-    done = False
+    done = True
     step_num = 0
     error_val = "null"
     action_text = ""
@@ -168,6 +162,31 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
     print(f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}", flush=True)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    try:
+        opening = opening_question(
+            client,
+            task_name,
+            model=JUDGE_MODEL_NAME,
+            temperature=JUDGE_TEMPERATURE,
+            max_tokens=JUDGE_MAX_TOKENS,
+            seed=LLM_SEED,
+        )
+        obs = env.reset(task=task_name, opening_question=opening)
+        done = False
+    except Exception as e:
+        step_num = 1
+        question = ""
+        action_text = ""
+        reward = 0.0
+        done = True
+        error_val = _format_error(e)
+        rewards.append(reward)
+        print(
+            f"[STEP] step={step_num} action={action_text} "
+            f"reward={reward:.2f} done={str(done).lower()} error={error_val}",
+            flush=True,
+        )
 
     while not done:
         step_num += 1
@@ -215,7 +234,7 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
             action_text = ""
             reward = 0.0
             done = True
-            error_val = str(e).replace("\n", " ")[:100]
+            error_val = _format_error(e)
 
         rewards.append(reward)
 
@@ -281,4 +300,15 @@ if __name__ == "__main__":
 
     for task_name in TASKS:
         _append_transcript(combined_log, f"\n---\n\n## Task Block: {task_name}\n\n")
-        run_task(client, env, task_name, transcript_path=combined_log)
+        try:
+            run_task(client, env, task_name, transcript_path=combined_log)
+        except Exception as e:
+            print(
+                f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}",
+                flush=True,
+            )
+            print(
+                f"[STEP] step=1 action= reward=0.00 done=true error={_format_error(e)}",
+                flush=True,
+            )
+            print("[END] success=false steps=1 rewards=0.00", flush=True)
