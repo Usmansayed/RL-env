@@ -318,8 +318,9 @@ if __name__ == "__main__":
                 f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}",
                 flush=True,
             )
+            safe_reward = _strict_logged_score(0.0)
             print(
-                f"[STEP] step=1 action= reward=0.00 done=true error={_format_error(e)}",
+                f"[STEP] step=1 action= reward={safe_reward:.2f} done=true error={_format_error(e)}",
                 flush=True,
             )
-            print("[END] success=false steps=1 rewards=0.00", flush=True)
+            print(f"[END] success=false steps=1 rewards={safe_reward:.2f}", flush=True)
