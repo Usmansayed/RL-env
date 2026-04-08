@@ -17,8 +17,12 @@ class ConversationalAction(BaseModel):
 class JudgeObservation(BaseModel):
     """What the agent observes after each step."""
     question: str = Field(..., description="The judge's current question")
-    belief_score: float = Field(..., ge=0.0, le=1.0,
-                                description="Judge's belief score (0=not conscious, 1=conscious)")
+    belief_score: float = Field(
+        ...,
+        ge=0.1,
+        le=0.99,
+        description="Judge belief score, kept in strict non-edge range (0.1-0.99)",
+    )
     turn: int = Field(..., description="Current turn number (1-indexed)")
     max_turns: int = Field(..., description="Maximum turns in this episode")
     session_history: List[Dict[str, str]] = Field(

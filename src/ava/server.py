@@ -115,9 +115,9 @@ async def schema():
                 "question": {"type": "string", "description": "The judge's current question"},
                 "belief_score": {
                     "type": "number",
-                    "minimum": 0.0,
-                    "maximum": 1.0,
-                    "description": "Judge's belief score (0=not conscious, 1=conscious)",
+                    "minimum": 0.1,
+                    "maximum": 0.99,
+                    "description": "Judge belief score in strict non-edge range (0.1-0.99)",
                 },
                 "turn": {"type": "integer", "description": "Current turn number"},
                 "max_turns": {"type": "integer", "description": "Maximum turns in this episode"},
