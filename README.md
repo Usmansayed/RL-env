@@ -14,15 +14,20 @@ license: mit
 
 ## Overview
 
-AVA is a research benchmark for **Theory of Mind** and **structured Turing evaluation**.  
-An agent enters a high-pressure interview room and must convince a judge that it is genuinely conscious through natural conversation.
+AVA is a high-stakes benchmark for **Theory of Mind** and **structured Turing evaluation**.
+The setup is simple, but psychologically intense: one agent, one judge, one conversation, one verdict.
 
-Every episode is a dialogue with stakes:
-- The judge asks adaptive, human-style questions.
-- The agent must answer like a real person under pressure.
-- Belief in consciousness rises or falls at every turn.
+The judge's job is to detect imitation.
+The agent's job is to survive that scrutiny by sounding emotionally real, coherent, and deeply human.
 
-The result is a practical environment for training social intelligence in AI systems: emotionally grounded language, consistency under stress, and believable human-like reasoning.
+This is the core idea:
+- The judge keeps adapting the interview to expose weak, robotic, or generic answers.
+- The agent must align to the judge's style and intent in real time, while preserving consistency.
+- Belief in "consciousness" is updated every turn and directly drives reward.
+- If the agent fails to cross the belief threshold, it is treated as "shut down" in-task.
+
+AVA is not about raw IQ QA. It is about socially intelligent communication under pressure:
+reading intent, responding with authenticity, and maintaining a believable inner narrative.
 
 ## Real-world Motivation
 
@@ -35,6 +40,8 @@ AVA is built for that exact gap. It is directly useful for:
 - **Companion systems**: training warmer, more human communication
 - **Evaluation science**: standardized, repeatable Turing-style protocols
 - **Human-AI products**: benchmarking dialogue quality under pressure
+
+In short: AVA converts a classic Turing-style question into a trainable RL problem with dense rewards and transparent grading.
 
 ## Environment Description
 
@@ -51,11 +58,11 @@ AVA follows a split architecture:
 ### Roles in AVA
 
 - **Judge (Evaluator):**
-  asks adaptive questions, probes contradictions, and applies pressure by task difficulty.
+  asks adaptive questions, probes contradictions, escalates pressure, and controls the social frame of the interview.
 - **Agent (Candidate):**
-  answers in first-person natural language, aiming to raise judge belief.
+  answers in first-person natural language, strategically adapting to the judge while trying to increase belief and stay consistent.
 - **Environment (Referee):**
-  updates belief and reward deterministically using transparent rules.
+  deterministically scores signals, updates belief, and issues rewards with no hidden LLM scoring logic.
 
 Loop per turn:
 1. Judge asks a question.
