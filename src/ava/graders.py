@@ -4,7 +4,6 @@ All graders are deterministic — same inputs always produce same output.
 All graders return scores strictly inside (0, 1), clamped to the inner band
 defined in score_bounds.
 """
-from typing import List, Dict
 
 from .score_bounds import clamp_task_score
 
