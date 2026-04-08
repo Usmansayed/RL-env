@@ -225,9 +225,12 @@ class AvaEnvironment:
         else:
             reward = belief_delta
 
-        # Normalize to validator-safe [0.0, 1.0] while preserving direction:
-        # positive deltas move above 0.5, penalties move below 0.5.
-        return round(max(0.0, min(1.0, 0.5 + reward)), 4)
+        # Keep externally consumed reward values away from exact edges to avoid
+        # strict validator failures when 0.0/1.0 are disallowed.
+        return round(
+            max(STRICT_MIN_SCORE, min(STRICT_MAX_SCORE, 0.5 + reward)),
+            4,
+        )
 
     def _compute_final_score(self) -> float:
         """Compute the graded final score for the completed episode."""
