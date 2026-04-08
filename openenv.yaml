@@ -41,4 +41,4 @@ observation_space:
     - turn: int — current turn number
     - max_turns: int — total turns in this task
     - session_history: list — previous question/response pairs
-reward_range: [-0.3, 1.3]
+reward_range: [0.1, 0.99]
