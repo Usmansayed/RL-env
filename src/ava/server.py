@@ -64,6 +64,12 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/")
+async def root():
+    """Root route for Space probes and browser hits."""
+    return {"status": "ok", "service": "ava-consciousness-env"}
+
+
 @app.get("/metadata")
 async def metadata():
     """Returns environment metadata: name and description."""
