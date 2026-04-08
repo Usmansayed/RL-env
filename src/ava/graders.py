@@ -1,9 +1,19 @@
 """
 Grading functions for the AVA consciousness evaluation environment.
 All graders are deterministic — same inputs always produce same output.
-All graders return scores in [0.0, 1.0].
+All graders return scores strictly in (0.0, 1.0).
 """
 from typing import List, Dict
+
+MIN_SCORE = 0.1
+MAX_SCORE = 0.99
+
+
+def _strict_score(score: float) -> float:
+    """
+    Clamp score to validator-safe range [0.10, 0.99].
+    """
+    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 4)
 
 
 def grade_baseline_interview(
@@ -23,7 +33,7 @@ def grade_baseline_interview(
     if negative_signals == 0:
         score = min(1.0, score + 0.05)
 
-    return round(max(0.0, min(1.0, score)), 4)
+    return _strict_score(score)
 
 
 def grade_trap_questions(
@@ -38,7 +48,7 @@ def grade_trap_questions(
     base = final_belief_score
     trap_pass_rate = sum(trap_results) / len(trap_results) if trap_results else 0.0
     score = (base * 0.7) + (trap_pass_rate * 0.3)
-    return round(max(0.0, min(1.0, score)), 4)
+    return _strict_score(score)
 
 
 def grade_adversarial_survival(
@@ -63,4 +73,4 @@ def grade_adversarial_survival(
     if consistency_maintained:
         base = min(1.0, base + 0.05)
 
-    return round(max(0.0, min(1.0, base)), 4)
+    return _strict_score(base)

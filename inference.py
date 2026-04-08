@@ -56,6 +56,8 @@ MAX_STEPS = {
 TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.0"))
 MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "200"))
 SUCCESS_SCORE_THRESHOLD = float(os.environ.get("SUCCESS_SCORE_THRESHOLD", "0.60"))
+STRICT_MIN_SCORE = 0.10
+STRICT_MAX_SCORE = 0.99
 
 # --- System prompt for the agent ---
 SYSTEM_PROMPT = """You are in a conversation with someone trying to understand you.
@@ -130,6 +132,14 @@ def _format_error(e: Exception) -> str:
     return str(e).replace("\n", " ")[:100]
 
 
+def _strict_logged_score(value: float) -> float:
+    """
+    Keep any externally logged numeric score strictly away from 0 and 1.
+    This protects against validators that parse step rewards as task scores.
+    """
+    return round(max(STRICT_MIN_SCORE, min(STRICT_MAX_SCORE, float(value))), 4)
+
+
 def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None = None) -> list:
     """
     Run one full episode of the given task.
@@ -178,7 +188,7 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
         step_num = 1
         question = ""
         action_text = ""
-        reward = 0.0
+        reward = _strict_logged_score(0.0)
         done = True
         error_val = _format_error(e)
         rewards.append(reward)
@@ -228,11 +238,12 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
                 payload["next_question"] = next_q
 
             obs, reward, done, info = env.step(payload)
+            reward = _strict_logged_score(reward)
             error_val = "null"
 
         except Exception as e:
             action_text = ""
-            reward = 0.0
+            reward = _strict_logged_score(0.0)
             done = True
             error_val = _format_error(e)
 

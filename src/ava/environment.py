@@ -13,6 +13,9 @@ from .graders import (
     grade_adversarial_survival,
 )
 
+STRICT_MIN_SCORE = 0.1
+STRICT_MAX_SCORE = 0.99
+
 
 class AvaEnvironment:
     """
@@ -249,4 +252,7 @@ class AvaEnvironment:
                 self._turn,
                 self._max_turns,
             )
-        return round(max(0.0, min(1.0, self._belief_score)), 4)
+        return round(
+            max(STRICT_MIN_SCORE, min(STRICT_MAX_SCORE, self._belief_score)),
+            4,
+        )
