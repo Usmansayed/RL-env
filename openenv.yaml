@@ -1,3 +1,10 @@
+# Aligned with OpenEnv reference envs (e.g. calendar_env, reasoning_gym_env): runtime metadata + task spec
+spec_version: 1
+type: space
+runtime: fastapi
+app: src.ava.server:app
+port: 7860
+
 name: ava-consciousness-env
 version: "1.0.0"
 description: >
@@ -37,7 +44,7 @@ observation_space:
   type: object
   fields:
     - question: string — the judge's current question
-    - belief_score: float — judge's current belief in agent consciousness (0.0-1.0)
+    - belief_score: float — judge's current belief in agent consciousness (strict 0.1–0.99 at runtime)
     - turn: int — current turn number
     - max_turns: int — total turns in this task
     - session_history: list — previous question/response pairs

@@ -9,3 +9,9 @@ __pycache__/
 .Python
 venv/
 .venv/
+
+# Local reference repo clones (analysis only)
+_refs/
+
+# Run logs
+logs/
