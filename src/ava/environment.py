@@ -144,8 +144,11 @@ class AvaEnvironment:
                 if self._task_name == "adversarial-survival":
                     belief_delta -= 0.15
 
-        # Update belief score — clip to [0.0, 1.0]
-        self._belief_score = max(0.0, min(1.0, self._belief_score + belief_delta))
+        # Update belief score — keep strict non-edge bounds for validator safety.
+        self._belief_score = max(
+            STRICT_MIN_SCORE,
+            min(STRICT_MAX_SCORE, self._belief_score + belief_delta),
+        )
 
         # Check if episode is done
         self._done = self._turn >= self._max_turns
