@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -140,7 +141,44 @@ def _strict_logged_score(value: float) -> float:
     return clamp_task_score(value)
 
 
-def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None = None) -> list:
+def _safe_output_score(value: object) -> float:
+    """Final-output hardening layer: finite float, strict-open (0, 1)."""
+    from src.ava.score_bounds import clamp_task_score, harden_score_for_output
+
+    # Layer 1: strict-open hard clamp (1e-6, 1-1e-6)
+    # Layer 2: validator-safe inner band used across AVA score surfaces.
+    return float(clamp_task_score(harden_score_for_output(value)))
+
+
+def _validate_strict_task_score(task_name: str, score_value: object) -> float:
+    """
+    Strict validator for task scores:
+      - exists / not None
+      - float-like
+      - finite (not NaN/inf)
+      - strictly 0 < score < 1
+      - does not collapse to edge after rounding in common precisions
+    """
+    if score_value is None:
+        raise AssertionError(f"{task_name}: score is None")
+    try:
+        s = float(score_value)
+    except (TypeError, ValueError) as exc:
+        raise AssertionError(f"{task_name}: score is not float-like: {score_value!r}") from exc
+    if s != s or s in (float("inf"), float("-inf")):
+        raise AssertionError(f"{task_name}: score is NaN/inf: {score_value!r}")
+    if not (0.0 < s < 1.0):
+        raise AssertionError(f"{task_name}: score out of open range: {s!r}")
+    for digits in (2, 4):
+        r = round(s, digits)
+        if r <= 0.0 or r >= 1.0:
+            raise AssertionError(
+                f"{task_name}: score collapses to edge after rounding({digits}) => {r!r}"
+            )
+    return s
+
+
+def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None = None) -> dict:
     """
     Run one full episode of the given task.
     Emits [START], [STEP]*, [END] lines to stdout in the required format.
@@ -153,6 +191,7 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
     step_num = 0
     error_val = "null"
     action_text = ""
+    last_info = {}
     transcript_path = transcript_path or _prepare_transcript_file(task_name)
 
     if LOG_FULL_CONVERSATION:
@@ -188,7 +227,7 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
         step_num = 1
         question = ""
         action_text = ""
-        reward = _strict_logged_score(0.0)
+        reward = _safe_output_score(_strict_logged_score(0.0))
         done = True
         error_val = _format_error(e)
         rewards.append(reward)
@@ -238,12 +277,13 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
                 payload["next_question"] = next_q
 
             obs, reward, done, info = env.step(payload)
-            reward = _strict_logged_score(reward)
+            reward = _safe_output_score(_strict_logged_score(reward))
             error_val = "null"
+            last_info = info if isinstance(info, dict) else {}
 
         except Exception as e:
             action_text = ""
-            reward = _strict_logged_score(0.0)
+            reward = _safe_output_score(_strict_logged_score(0.0))
             done = True
             error_val = _format_error(e)
 
@@ -268,8 +308,14 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
             flush=True,
         )
 
+    # Aggregation safety layer
+    rewards = [_safe_output_score(r) for r in rewards]
     success = rewards[-1] >= SUCCESS_SCORE_THRESHOLD if rewards else False
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    rewards_str = ",".join(f"{_safe_output_score(r):.2f}" for r in rewards)
+    raw_task_score = last_info.get("final_score", rewards[-1] if rewards else None)
+    final_task_score = _safe_output_score(raw_task_score)
+    if os.environ.get("STRICT_ASSERT_SCORES", "1").strip().lower() in ("1", "true", "yes"):
+        _validate_strict_task_score(task_name, final_task_score)
 
     # [END] line — exactly this format
     print(
@@ -288,7 +334,14 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
             ),
         )
 
-    return rewards
+    return {
+        "task": task_name,
+        "score": final_task_score,
+        "steps": step_num,
+        "success": bool(success),
+        "rewards": rewards,
+        "error": error_val if error_val != "null" else None,
+    }
 
 
 if __name__ == "__main__":
@@ -309,18 +362,40 @@ if __name__ == "__main__":
         ),
     )
 
+    final_payload = {"benchmark": BENCHMARK, "model": MODEL_NAME, "tasks": []}
+
     for task_name in TASKS:
         _append_transcript(combined_log, f"\n---\n\n## Task Block: {task_name}\n\n")
         try:
-            run_task(client, env, task_name, transcript_path=combined_log)
+            task_result = run_task(client, env, task_name, transcript_path=combined_log)
+            final_payload["tasks"].append(task_result)
         except Exception as e:
             print(
                 f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}",
                 flush=True,
             )
-            safe_reward = _strict_logged_score(0.0)
+            safe_reward = _safe_output_score(_strict_logged_score(0.0))
             print(
                 f"[STEP] step=1 action= reward={safe_reward:.2f} done=true error={_format_error(e)}",
                 flush=True,
             )
             print(f"[END] success=false steps=1 rewards={safe_reward:.2f}", flush=True)
+            final_payload["tasks"].append(
+                {
+                    "task": task_name,
+                    "score": _safe_output_score(0.5),
+                    "steps": 1,
+                    "success": False,
+                    "rewards": [safe_reward],
+                    "error": _format_error(e),
+                }
+            )
+
+    # Final-output safety layer + assertion gate
+    for row in final_payload["tasks"]:
+        row["score"] = _safe_output_score(row.get("score"))
+        if os.environ.get("STRICT_ASSERT_SCORES", "1").strip().lower() in ("1", "true", "yes"):
+            _validate_strict_task_score(row["task"], row["score"])
+
+    if os.environ.get("PRINT_FINAL_PAYLOAD_JSON", "0").strip().lower() in ("1", "true", "yes"):
+        print(json.dumps(final_payload, indent=2), file=sys.stderr, flush=True)

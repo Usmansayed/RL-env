@@ -15,7 +15,12 @@ from src.ava.graders import (
     grade_baseline_interview,
     grade_trap_questions,
 )
-from src.ava.score_bounds import STRICT_MAX_SCORE, STRICT_MIN_SCORE, clamp_task_score
+from src.ava.score_bounds import (
+    INVALID_FALLBACK_SCORE,
+    STRICT_MAX_SCORE,
+    STRICT_MIN_SCORE,
+    clamp_task_score,
+)
 
 
 def _assert_open_unit(x: float, msg: str) -> None:
@@ -30,10 +35,9 @@ class TestClampTaskScore(unittest.TestCase):
         self.assertEqual(clamp_task_score(999.0), STRICT_MAX_SCORE)
 
     def test_nan_inf(self) -> None:
-        mid = round((STRICT_MIN_SCORE + STRICT_MAX_SCORE) / 2, 4)
-        self.assertEqual(clamp_task_score(float("nan")), mid)
-        self.assertEqual(clamp_task_score(float("inf")), STRICT_MAX_SCORE)
-        self.assertEqual(clamp_task_score(float("-inf")), STRICT_MIN_SCORE)
+        self.assertEqual(clamp_task_score(float("nan")), INVALID_FALLBACK_SCORE)
+        self.assertEqual(clamp_task_score(float("inf")), INVALID_FALLBACK_SCORE)
+        self.assertEqual(clamp_task_score(float("-inf")), INVALID_FALLBACK_SCORE)
 
 
 class TestGraders(unittest.TestCase):
