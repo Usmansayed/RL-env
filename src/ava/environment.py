@@ -12,7 +12,7 @@ from .graders import (
     grade_trap_questions,
     grade_adversarial_survival,
 )
-from .score_bounds import clamp_task_score
+from .score_bounds import clamp_task_score, is_strict_open_score
 
 
 class AvaEnvironment:
@@ -172,25 +172,36 @@ class AvaEnvironment:
             last_belief_delta=round(belief_delta, 4),
         )
 
+        current_final_score = self._compute_final_score() if self._done else clamp_task_score(self._belief_score)
         info = {
             "task": self._task_name,
             "turn": self._turn,
-            "belief": round(self._belief_score, 4),
+            "belief": clamp_task_score(self._belief_score),
             "positive_signals": self._positive_signals,
             "negative_signals": self._negative_signals,
             "consistency_maintained": self._consistency_maintained,
-            "final_score": self._compute_final_score() if self._done else None,
+            "final_score": clamp_task_score(current_final_score),
         }
+
+        # Fail closed locally if a score escapes strict-open bounds.
+        for key in ("belief", "final_score"):
+            if not is_strict_open_score(info[key]):
+                raise RuntimeError(f"Invalid score in step info: {key}={info[key]!r}")
+        if not is_strict_open_score(step_reward):
+            raise RuntimeError(f"Invalid step reward produced: {step_reward!r}")
 
         return observation, step_reward, self._done, info
 
     def state(self) -> Dict[str, Any]:
         """Return the full current state as a dict."""
+        belief = clamp_task_score(self._belief_score)
+        if not is_strict_open_score(belief):
+            raise RuntimeError(f"Invalid belief score in state: {belief!r}")
         return SessionState(
             task_name=self._task_name,
             turn=self._turn,
             max_turns=self._max_turns,
-            belief_score=round(self._belief_score, 4),
+            belief_score=belief,
             session_history=list(self._session_history),
             done=self._done,
             current_question=self._current_question,

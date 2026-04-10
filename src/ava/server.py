@@ -263,11 +263,17 @@ async def step(request: StepRequest):
         obs, reward, done, info = _env.step(
             {"text": action.text, "next_question": action.next_question}
         )
+        # Defensive API boundary sanitization for all outward score-like values.
+        safe_info = dict(info) if isinstance(info, dict) else {}
+        if "belief" in safe_info:
+            safe_info["belief"] = clamp_task_score(safe_info["belief"])
+        if "final_score" in safe_info:
+            safe_info["final_score"] = clamp_task_score(safe_info["final_score"])
         return StepResponse(
             observation=obs.model_dump(),
             reward=clamp_task_score(reward),
             done=done,
-            info=info,
+            info=safe_info,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
