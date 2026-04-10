@@ -8,5 +8,7 @@ __pycache__/
 _refs/
 logs/
 tests/
+scripts/
+uv.lock
 *.md
 !README.md
