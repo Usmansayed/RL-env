@@ -30,10 +30,13 @@ Intellectually honest constraint: no claim here is metaphysical; “consciousnes
 
 Fluent text is no longer rare. The bottleneck is whether a system can sustain **trustworthy, human-like** interaction when probed: emotional depth, specificity, memory of its own prior claims, and resistance to canned disclaimers. AVA targets that gap.
 
+A large class of deployments simply **works better when the AI feels more human**—not because users confuse it for a person, but because warmth, patience, and natural follow-up reduce friction and build trust. **Hotels and travel** (concierge, upsell, complaint handling), **hospitals and clinics** (triage bots, appointment guidance, anxious patients at 2 a.m.), **retail and banking**, **call centers and internal IT desks**: everywhere a stiff script reads as “machine,” outcomes get worse—abandonment, non-compliance, escalations. AVA is a **training and evaluation environment** that can **fine-tune or RL-tune** models toward language that reads as **present, coherent, and emotionally plausible** under pressure—the same bundle of behaviors people describe, loosely, as “more conscious in conversation,” without making any claim that the model *is* conscious.
+
 Typical uses:
 
 - **AI safety** — Stress social reasoning and self-consistency under adaptive questioning.
 - **Human–AI products** — Benchmark tone, empathy, and failure modes before deployment.
+- **Hospitality, healthcare, and service** — Improve guest/patient/customer-facing agents so they sound grounded and adaptive rather than robotic; use dense rewards to steer toward human-like dialogue quality.
 - **Evaluation science** — Repeatable sessions with transparent, auditable scoring.
 
 ## How it works (split architecture)
