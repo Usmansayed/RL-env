@@ -12,7 +12,7 @@ from .graders import (
     grade_trap_questions,
     grade_adversarial_survival,
 )
-from .score_bounds import clamp_task_score, is_strict_open_score
+from .score_bounds import clamp_task_score, clamp_step_reward, is_strict_open_score
 
 
 class AvaEnvironment:
@@ -236,7 +236,7 @@ class AvaEnvironment:
 
         # Keep externally consumed reward values away from exact edges to avoid
         # strict validator failures when 0.0/1.0 are disallowed.
-        return clamp_task_score(0.5 + reward)
+        return clamp_step_reward(0.5 + reward)
 
     def _compute_final_score(self) -> float:
         """Compute the graded final score for the completed episode."""

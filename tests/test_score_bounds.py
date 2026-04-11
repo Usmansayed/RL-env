@@ -17,8 +17,11 @@ from src.ava.graders import (
 )
 from src.ava.score_bounds import (
     INVALID_FALLBACK_SCORE,
+    STEP_REWARD_MAX,
+    STEP_REWARD_MIN,
     STRICT_MAX_SCORE,
     STRICT_MIN_SCORE,
+    clamp_step_reward,
     clamp_task_score,
 )
 
@@ -38,6 +41,14 @@ class TestClampTaskScore(unittest.TestCase):
         self.assertEqual(clamp_task_score(float("nan")), INVALID_FALLBACK_SCORE)
         self.assertEqual(clamp_task_score(float("inf")), INVALID_FALLBACK_SCORE)
         self.assertEqual(clamp_task_score(float("-inf")), INVALID_FALLBACK_SCORE)
+
+
+class TestClampStepReward(unittest.TestCase):
+    def test_step_band(self) -> None:
+        self.assertEqual(clamp_step_reward(0.0), STEP_REWARD_MIN)
+        self.assertEqual(clamp_step_reward(1.0), STEP_REWARD_MAX)
+        self.assertEqual(clamp_step_reward(-9.0), STEP_REWARD_MIN)
+        self.assertEqual(clamp_step_reward(9.0), STEP_REWARD_MAX)
 
 
 class TestGraders(unittest.TestCase):

@@ -44,8 +44,8 @@ observation_space:
   type: object
   fields:
     - question: string — the judge's current question
-    - belief_score: float — judge's current belief in agent consciousness (strict 0.1–0.99 at runtime)
+    - belief_score: float — judge's current belief in agent consciousness (strict 0.001–0.999 at runtime)
     - turn: int — current turn number
     - max_turns: int — total turns in this task
     - session_history: list — previous question/response pairs
-reward_range: [0.1, 0.99]
+reward_range: [0.01, 0.99]

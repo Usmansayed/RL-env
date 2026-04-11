@@ -9,7 +9,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from src.ava.environment import AvaEnvironment
-from src.ava.score_bounds import clamp_task_score, harden_score_for_output
+from src.ava.score_bounds import clamp_step_reward, clamp_task_score, harden_score_for_output
 
 TASKS = ["baseline-interview", "trap-questions", "adversarial-survival"]
 
@@ -30,7 +30,7 @@ def strict_validate_score(name: str, value: Any) -> float:
         raise AssertionError(f"{name}: score is NaN/inf ({value!r})")
     if not (0.0 < x < 1.0):
         raise AssertionError(f"{name}: score not in open interval (0,1): {x}")
-    for digits in (2, 4):
+    for digits in (4, 6):
         r = round(x, digits)
         if r <= 0.0 or r >= 1.0:
             raise AssertionError(
@@ -71,7 +71,7 @@ def run_pipeline_with_trace() -> Dict[str, Any]:
             _obs, raw_reward, done, info = env.step(
                 {"text": agent_output, "next_question": f"follow up {turn}?"}
             )
-            safe_step_reward = safe_output_score(raw_reward)
+            safe_step_reward = float(clamp_step_reward(raw_reward))
             strict_validate_score(f"{task}.step[{turn}]", safe_step_reward)
 
             rewards.append(safe_step_reward)
@@ -88,7 +88,7 @@ def run_pipeline_with_trace() -> Dict[str, Any]:
             )
 
         # after aggregation
-        agg_rewards = [safe_output_score(r) for r in rewards]
+        agg_rewards = [float(clamp_step_reward(r)) for r in rewards]
         for i, r in enumerate(agg_rewards, start=1):
             strict_validate_score(f"{task}.agg_reward[{i}]", r)
 

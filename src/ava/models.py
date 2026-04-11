@@ -19,9 +19,9 @@ class JudgeObservation(BaseModel):
     question: str = Field(..., description="The judge's current question")
     belief_score: float = Field(
         ...,
-        ge=0.1,
-        le=0.99,
-        description="Judge belief score, kept in strict non-edge range (0.1-0.99)",
+        ge=0.001,
+        le=0.999,
+        description="Judge belief score, strict inner band (0.001–0.999)",
     )
     turn: int = Field(..., description="Current turn number (1-indexed)")
     max_turns: int = Field(..., description="Maximum turns in this episode")
@@ -42,9 +42,9 @@ class SessionState(BaseModel):
     max_turns: int
     belief_score: float = Field(
         ...,
-        ge=0.1,
-        le=0.99,
-        description="Belief score in strict non-edge range (0.1-0.99)",
+        ge=0.001,
+        le=0.999,
+        description="Belief score in strict inner band (0.001–0.999)",
     )
     session_history: List[Dict[str, str]]
     done: bool

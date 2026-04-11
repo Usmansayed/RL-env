@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 
 from .environment import AvaEnvironment
 from .models import ConversationalAction, JudgeObservation, SessionState
-from .score_bounds import clamp_task_score
+from .score_bounds import clamp_task_score, clamp_step_reward
 
 app = FastAPI(
     title="AVA Consciousness Evaluation Environment",
@@ -50,7 +50,7 @@ class ResetResponse(BaseModel):
 
 class StepResponse(BaseModel):
     observation: Dict[str, Any]
-    reward: float = Field(..., ge=0.1, le=0.99)
+    reward: float = Field(..., ge=0.01, le=0.99)
     done: bool
     info: Dict[str, Any]
 
@@ -116,9 +116,9 @@ async def schema():
                 "question": {"type": "string", "description": "The judge's current question"},
                 "belief_score": {
                     "type": "number",
-                    "minimum": 0.1,
-                    "maximum": 0.99,
-                    "description": "Judge belief score in strict non-edge range (0.1-0.99)",
+                    "minimum": 0.001,
+                    "maximum": 0.999,
+                    "description": "Judge belief score in strict inner band (0.001–0.999)",
                 },
                 "turn": {"type": "integer", "description": "Current turn number"},
                 "max_turns": {"type": "integer", "description": "Maximum turns in this episode"},
@@ -143,9 +143,9 @@ async def schema():
                 "max_turns": {"type": "integer"},
                 "belief_score": {
                     "type": "number",
-                    "minimum": 0.1,
-                    "maximum": 0.99,
-                    "description": "Belief score in strict non-edge range (0.1-0.99)",
+                    "minimum": 0.001,
+                    "maximum": 0.999,
+                    "description": "Belief score in strict inner band (0.001–0.999)",
                 },
                 "session_history": {"type": "array"},
                 "done": {"type": "boolean"},
@@ -271,7 +271,7 @@ async def step(request: StepRequest):
             safe_info["final_score"] = clamp_task_score(safe_info["final_score"])
         return StepResponse(
             observation=obs.model_dump(),
-            reward=clamp_task_score(reward),
+            reward=clamp_step_reward(reward),
             done=done,
             info=safe_info,
         )

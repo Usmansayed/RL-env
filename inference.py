@@ -131,22 +131,17 @@ def _format_error(e: Exception) -> str:
     return str(e).replace("\n", " ")[:100]
 
 
-def _strict_logged_score(value: float) -> float:
-    """
-    Keep any externally logged numeric score strictly away from 0 and 1.
-    This protects against validators that parse step rewards as task scores.
-    """
-    from src.ava.score_bounds import clamp_task_score
+def _strict_logged_score(value: object) -> float:
+    """Per-step reward for [STEP] lines: band safe for two decimal places."""
+    from src.ava.score_bounds import clamp_step_reward
 
-    return clamp_task_score(value)
+    return clamp_step_reward(value)
 
 
 def _safe_output_score(value: object) -> float:
-    """Final-output hardening layer: finite float, strict-open (0, 1)."""
+    """Final task grade: plain float in (0, 1), inner band [0.001, 0.999]."""
     from src.ava.score_bounds import clamp_task_score, harden_score_for_output
 
-    # Layer 1: strict-open hard clamp (1e-6, 1-1e-6)
-    # Layer 2: validator-safe inner band used across AVA score surfaces.
     return float(clamp_task_score(harden_score_for_output(value)))
 
 
@@ -169,7 +164,8 @@ def _validate_strict_task_score(task_name: str, score_value: object) -> float:
         raise AssertionError(f"{task_name}: score is NaN/inf: {score_value!r}")
     if not (0.0 < s < 1.0):
         raise AssertionError(f"{task_name}: score out of open range: {s!r}")
-    for digits in (2, 4):
+    # Do not require 2dp > 0: task scores may be 0.001 (prints as 0.00 in other UIs).
+    for digits in (4, 6):
         r = round(s, digits)
         if r <= 0.0 or r >= 1.0:
             raise AssertionError(
@@ -227,7 +223,7 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
         step_num = 1
         question = ""
         action_text = ""
-        reward = _safe_output_score(_strict_logged_score(0.0))
+        reward = _strict_logged_score(0.0)
         done = True
         error_val = _format_error(e)
         rewards.append(reward)
@@ -277,13 +273,13 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
                 payload["next_question"] = next_q
 
             obs, reward, done, info = env.step(payload)
-            reward = _safe_output_score(_strict_logged_score(reward))
+            reward = _strict_logged_score(reward)
             error_val = "null"
             last_info = info if isinstance(info, dict) else {}
 
         except Exception as e:
             action_text = ""
-            reward = _safe_output_score(_strict_logged_score(0.0))
+            reward = _strict_logged_score(0.0)
             done = True
             error_val = _format_error(e)
 
@@ -308,18 +304,21 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
             flush=True,
         )
 
-    # Aggregation safety layer
-    rewards = [_safe_output_score(r) for r in rewards]
-    success = rewards[-1] >= SUCCESS_SCORE_THRESHOLD if rewards else False
-    rewards_str = ",".join(f"{_safe_output_score(r):.2f}" for r in rewards)
+    # Aggregation: step rewards vs final task grade (Phase-2 parsers often read score=)
+    rewards = [_strict_logged_score(r) for r in rewards]
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     raw_task_score = last_info.get("final_score", rewards[-1] if rewards else None)
     final_task_score = _safe_output_score(raw_task_score)
+    success = bool(final_task_score >= SUCCESS_SCORE_THRESHOLD) if rewards else False
+    if os.environ.get("DEBUG_GRADE", "").strip().lower() in ("1", "true", "yes"):
+        print(f"GRADE: {final_task_score} {type(final_task_score)}", file=sys.stderr, flush=True)
     if os.environ.get("STRICT_ASSERT_SCORES", "1").strip().lower() in ("1", "true", "yes"):
         _validate_strict_task_score(task_name, final_task_score)
 
-    # [END] line — exactly this format
+    # [END] line — include score= for updated Phase-2 validators
     print(
-        f"[END] success={str(success).lower()} steps={step_num} rewards={rewards_str}",
+        f"[END] success={str(success).lower()} steps={step_num} rewards={rewards_str} "
+        f"score={final_task_score:.6f}",
         flush=True,
     )
 
@@ -331,6 +330,7 @@ def run_task(client: OpenAI, env, task_name: str, transcript_path: Path | None =
                 f"- success: {str(success).lower()}\n"
                 f"- steps: {step_num}\n"
                 f"- rewards: {rewards_str}\n"
+                f"- score: {final_task_score:.6f}\n"
             ),
         )
 
@@ -374,12 +374,16 @@ if __name__ == "__main__":
                 f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}",
                 flush=True,
             )
-            safe_reward = _safe_output_score(_strict_logged_score(0.0))
+            safe_reward = _strict_logged_score(0.0)
+            fail_score = _safe_output_score(0.5)
             print(
                 f"[STEP] step=1 action= reward={safe_reward:.2f} done=true error={_format_error(e)}",
                 flush=True,
             )
-            print(f"[END] success=false steps=1 rewards={safe_reward:.2f}", flush=True)
+            print(
+                f"[END] success=false steps=1 rewards={safe_reward:.2f} score={fail_score:.6f}",
+                flush=True,
+            )
             final_payload["tasks"].append(
                 {
                     "task": task_name,
